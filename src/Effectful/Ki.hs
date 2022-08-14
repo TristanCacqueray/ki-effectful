@@ -4,15 +4,16 @@ module Effectful.Ki (
 
     -- * Handlers
     runStructuredConcurrency,
+    withCurrentScope,
 
     -- * Core API
     Scope,
     Thread,
-    scoped,
     fork,
     forkTry,
     await,
     awaitAll,
+    withAwaitAll,
 
     -- * Extended API
     fork_,
@@ -30,8 +31,7 @@ import Control.Exception (Exception)
 import Data.Void (Void)
 import Effectful
 import Effectful.Dispatch.Static
-
--- import Effectful.Dispatch.Static.Primitive (cloneEnv)
+import Effectful.Dispatch.Static.Primitive (cloneEnv)
 
 import Ki hiding (fork, forkTry, fork_, scoped)
 import Ki qualified
@@ -39,43 +39,58 @@ import Ki qualified
 data StructuredConcurrency :: Effect
 
 type instance DispatchOf StructuredConcurrency = 'Static 'WithSideEffects
-data instance StaticRep StructuredConcurrency = StructuredConcurrency
+data instance StaticRep StructuredConcurrency = StructuredConcurrency Scope
 
 -- | Run the 'StructuredConcurrency' effect.
 runStructuredConcurrency :: IOE :> es => Eff (StructuredConcurrency : es) a -> Eff es a
-runStructuredConcurrency = evalStaticRep StructuredConcurrency
+runStructuredConcurrency k = withEffToIO $ \runInIO ->
+    Ki.scoped $ \scope ->
+        runInIO $ evalStaticRep (StructuredConcurrency scope) k
 
-scoped ::
+-- | Provide a callback function to run an action within the current `Scope`.
+withCurrentScope ::
     StructuredConcurrency :> es =>
-    (Scope -> Eff es a) ->
-    Eff es a
-scoped action = unsafeEff $ \es -> do
-    Ki.scoped (\scope -> unEff (action scope) es)
+    ((forall es' a. IOE :> es' => Eff (StructuredConcurrency : es') a -> Eff es' a) -> Eff es b) ->
+    Eff es b
+withCurrentScope f = do
+    rep <- getStaticRep
+    f (evalStaticRep rep)
 
 fork ::
     StructuredConcurrency :> es =>
-    Scope ->
     Eff es a ->
     Eff es (Thread a)
-fork scope action = unsafeEff $ \es -> do
-    Ki.fork scope (unEff action es)
+fork action = do
+    StructuredConcurrency scope <- getStaticRep
+    unsafeEff $ \es -> do
+        es' <- cloneEnv es
+        Ki.fork scope (unEff action es')
 
 forkTry ::
     Exception e =>
     StructuredConcurrency :> es =>
-    Scope ->
     Eff es a ->
     Eff es (Thread (Either e a))
-forkTry scope action = unsafeEff $ \es -> do
-    Ki.forkTry scope (unEff action es)
+forkTry action = do
+    StructuredConcurrency scope <- getStaticRep
+    unsafeEff $ \es -> do
+        es' <- cloneEnv es
+        Ki.forkTry scope (unEff action es')
 
 fork_ ::
     StructuredConcurrency :> es =>
-    Scope ->
     Eff es Void ->
     Eff es ()
-fork_ scope action = unsafeEff $ \es -> do
-    Ki.fork_ scope (unEff action es)
+fork_ action = do
+    StructuredConcurrency scope <- getStaticRep
+    unsafeEff $ \es -> do
+        es' <- cloneEnv es
+        Ki.fork_ scope (unEff action es')
+
+withAwaitAll :: StructuredConcurrency :> es => (STM () -> STM a) -> Eff es a
+withAwaitAll f = do
+    StructuredConcurrency scope <- getStaticRep
+    unsafeEff_ $ STM.atomically $ f $ Ki.awaitAll scope
 
 atomically :: StructuredConcurrency :> es => STM a -> Eff es a
 atomically = unsafeEff_ . STM.atomically
