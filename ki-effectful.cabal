@@ -1,19 +1,22 @@
 cabal-version:      3.0
 name:               ki-effectful
 version:            0.0.1.0
-homepage:
-  https://github.com/TristanCacqueray/ki-effectful#readme
+category:           Concurrency
+stability:          experimental
+synopsis:           Adaptation of the ki library for the effectful ecosystem.
+description:
+  Adaptation of the @<https://hackage.haskell.org/package/ki ki>@ library for the @<https://hackage.haskell.org/package/effectful effectful>@ ecosystem.
 
-bug-reports:
-  https://github.com/TristanCacqueray/ki-effectful/issues
-
+bug-reports:        https://github.com/TristanCacqueray/ki-effectful/issues
+homepage:           https://github.com/TristanCacqueray/ki-effectful#readme
 author:             Tristan de Cacqueray
 maintainer:         tdecacqu@redhat.com
+copyright:          2022 Red Hat
 license:            MIT
+license-file:       LICENSE.md
 build-type:         Simple
 extra-source-files:
   CHANGELOG.md
-  LICENSE.md
   README.md
 
 source-repository head
@@ -23,10 +26,10 @@ source-repository head
 common common-ghc-options
   ghc-options:
     -Wall -Wcompat -Werror -Widentities -Wincomplete-record-updates
-    -Wincomplete-uni-patterns -Wpartial-fields
-    -fhide-source-paths -Wno-unused-do-bind
-    -j
-  default-language:   Haskell2010
+    -Wincomplete-uni-patterns -Wpartial-fields -fhide-source-paths
+    -Wno-unused-do-bind -j
+
+  default-language: Haskell2010
 
 common common-rts-options
   ghc-options: -rtsopts -threaded -with-rtsopts=-N
@@ -36,10 +39,10 @@ library
   hs-source-dirs:  src
   exposed-modules: Effectful.Ki
   build-depends:
-    , base            <=4.17
-    , effectful-core  >=1.0 && <1.3
-    , stm
-    , ki
+    , base            <5
+    , effectful-core  >=1.0 && <3.0
+    , ki              ^>=1.0
+    , stm             ^>=2.5
 
 test-suite ki-effectful-test
   import:         common-ghc-options
@@ -48,9 +51,9 @@ test-suite ki-effectful-test
   main-is:        Main.hs
   hs-source-dirs: test
   build-depends:
-    , base
-    , effectful-core
+    , base            <5
+    , effectful-core  >=1.0   && <3.0
     , ki-effectful
-    , stm
-    , tasty
-    , tasty-hunit
+    , stm             ^>=2.5
+    , tasty           ^>=1.4.2
+    , tasty-hunit     ^>=0.10
