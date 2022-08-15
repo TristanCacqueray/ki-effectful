@@ -19,6 +19,9 @@ main =
                 assertEqual "match" res 42
             , testCase "`fork` propagates exceptions" $ do
                 assertThrow $ runStructuredEff testThrow
+            , testCase "run a `fork` in a parent scope" $ do
+                res <- runStructuredEff testScopeLifting
+                assertEqual "match" res 42
             , testCase "`client` works" $ do
                 res <- runStructuredEff testClient
                 assertEqual "match" res (Just 42)
@@ -31,28 +34,34 @@ runStructuredEff :: Eff '[StructuredConcurrency, IOE] a -> IO a
 runStructuredEff = runEff . runStructuredConcurrency
 
 testFork :: StructuredConcurrency :> es => Eff es Int
-testFork = scoped $ \scope -> do
-    child <- fork scope $ pure 42
+testFork = do
+    child <- fork $ pure 42
     atomically $ await child
 
 testThrow :: StructuredConcurrency :> es => Eff es Int
-testThrow = scoped $ \scope -> do
-    fork scope $ error "oops"
-    child <- fork scope $ pure 42
-    atomically $ do
-        awaitAll scope
+testThrow = do
+    fork $ error "oops"
+    child <- fork $ pure 42
+    withAwaitAll $ \waitAll -> do
+        waitAll
         await child
 
+testScopeLifting :: StructuredConcurrency :> es => Eff es Int
+testScopeLifting = withCurrentScope $ \runInScope -> do
+    child <- scoped $ do
+        runInScope $ fork $ pure 42
+    atomically $ await child
+
 testClient :: StructuredConcurrency :> es => Eff es (Maybe Int)
-testClient = scoped $ \scope -> do
+testClient = do
     hitman <- newEmptyTMVarIO
-    child <- fork scope $ client hitman (pure 42)
+    child <- fork $ client hitman (pure 42)
     atomically $ await child
 
 testClientCancel :: (IOE :> es, StructuredConcurrency :> es) => Eff es (Maybe Int)
-testClientCancel = scoped $ \scope -> do
+testClientCancel = do
     hitman <- newEmptyTMVarIO
-    child <- fork scope $ client hitman $ do
+    child <- fork $ client hitman $ do
             -- liftIO $ putStrLn "running"
             liftIO (threadDelay 500000)
             pure 42
@@ -63,8 +72,8 @@ testClientCancel = scoped $ \scope -> do
 
 -- | cancellable client implementation proposed in https://github.com/awkward-squad/ki/issues/11#issuecomment-1214159154
 client :: StructuredConcurrency :> es => TMVar () -> Eff es a -> Eff es (Maybe a)
-client doneVar action = scoped $ \scope -> do
-    thread <- fork scope action
+client doneVar action = do
+    thread <- fork action
     let waitDone = do
             () <- readTMVar doneVar
             pure Nothing
