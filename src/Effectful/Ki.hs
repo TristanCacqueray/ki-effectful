@@ -13,12 +13,12 @@ module Effectful.Ki (
 
     -- * Handlers
     runStructuredConcurrency,
-    scoped,
     withCurrentScope,
 
     -- * Core API
     Scope,
     Thread,
+    scoped,
     fork,
     forkTry,
     await,
@@ -27,6 +27,19 @@ module Effectful.Ki (
 
     -- * Extended API
     fork_,
+    forkWith,
+    forkWith_,
+    forkTryWith,
+
+    -- ** Thread options
+    ThreadOptions (..),
+    defaultThreadOptions,
+    ThreadAffinity (..),
+
+    -- ** Byte count
+    ByteCount,
+    kilobytes,
+    megabytes,
 
     -- * STM re-export
     Effectful.Ki.atomically,
@@ -44,7 +57,7 @@ import Effectful.Dispatch.Static
 import Effectful.Dispatch.Static.Primitive (cloneEnv)
 import Effectful.Dispatch.Static.Unsafe (reallyUnsafeUnliftIO)
 
-import Ki hiding (fork, forkTry, fork_, scoped)
+import Ki hiding (fork, forkTry, forkTryWith, forkWith, forkWith_, fork_, scoped)
 import Ki qualified
 
 data StructuredConcurrency :: Effect
@@ -102,6 +115,40 @@ fork_ action = do
     unsafeEff $ \es -> do
         es' <- cloneEnv es
         Ki.fork_ scope (unEff action es')
+
+forkWith ::
+    StructuredConcurrency :> es =>
+    ThreadOptions ->
+    Eff es a ->
+    Eff es (Thread a)
+forkWith threadOptions action = do
+    StructuredConcurrency scope <- getStaticRep
+    unsafeEff $ \es -> do
+        es' <- cloneEnv es
+        Ki.forkWith scope threadOptions (unEff action es')
+
+forkWith_ ::
+    StructuredConcurrency :> es =>
+    ThreadOptions ->
+    Eff es Void ->
+    Eff es ()
+forkWith_ threadOptions action = do
+    StructuredConcurrency scope <- getStaticRep
+    unsafeEff $ \es -> do
+        es' <- cloneEnv es
+        Ki.forkWith_ scope threadOptions (unEff action es')
+
+forkTryWith ::
+    Exception e =>
+    StructuredConcurrency :> es =>
+    ThreadOptions ->
+    Eff es a ->
+    Eff es (Thread (Either e a))
+forkTryWith threadOptions action = do
+    StructuredConcurrency scope <- getStaticRep
+    unsafeEff $ \es -> do
+        es' <- cloneEnv es
+        Ki.forkTryWith scope threadOptions (unEff action es')
 
 withAwaitAll :: StructuredConcurrency :> es => (STM () -> STM a) -> Eff es a
 withAwaitAll f = do
