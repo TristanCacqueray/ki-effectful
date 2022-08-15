@@ -1,3 +1,8 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
+
 module Main where
 
 import Control.Applicative ((<|>))
@@ -62,9 +67,9 @@ testClientCancel :: (IOE :> es, StructuredConcurrency :> es) => Eff es (Maybe In
 testClientCancel = do
     hitman <- newEmptyTMVarIO
     child <- fork $ client hitman $ do
-            -- liftIO $ putStrLn "running"
-            liftIO (threadDelay 500000)
-            pure 42
+        -- liftIO $ putStrLn "running"
+        liftIO (threadDelay 500000)
+        pure 42
     liftIO (threadDelay 100000)
     -- liftIO $ putStrLn "stopping"
     atomically $ putTMVar hitman ()
