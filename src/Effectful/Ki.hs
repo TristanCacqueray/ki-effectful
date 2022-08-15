@@ -4,6 +4,7 @@ module Effectful.Ki (
 
     -- * Handlers
     runStructuredConcurrency,
+    scoped,
     withCurrentScope,
 
     -- * Core API
@@ -32,6 +33,7 @@ import Data.Void (Void)
 import Effectful
 import Effectful.Dispatch.Static
 import Effectful.Dispatch.Static.Primitive (cloneEnv)
+import Effectful.Dispatch.Static.Unsafe (reallyUnsafeUnliftIO)
 
 import Ki hiding (fork, forkTry, fork_, scoped)
 import Ki qualified
@@ -47,14 +49,19 @@ runStructuredConcurrency k = withEffToIO $ \runInIO ->
     Ki.scoped $ \scope ->
         runInIO $ evalStaticRep (StructuredConcurrency scope) k
 
+scoped :: StructuredConcurrency :> es => Eff es a -> Eff es a
+scoped k = reallyUnsafeUnliftIO $ \runInIO ->
+    Ki.scoped $ \scope ->
+        runInIO $ localStaticRep (const (StructuredConcurrency scope)) k
+
 -- | Provide a callback function to run an action within the current `Scope`.
 withCurrentScope ::
     StructuredConcurrency :> es =>
-    ((forall es' a. IOE :> es' => Eff (StructuredConcurrency : es') a -> Eff es' a) -> Eff es b) ->
+    ((forall es' a. StructuredConcurrency :> es' => Eff es' a -> Eff es' a) -> Eff es b) ->
     Eff es b
 withCurrentScope f = do
-    rep <- getStaticRep
-    f (evalStaticRep rep)
+    rep <- getStaticRep @StructuredConcurrency
+    f (localStaticRep (const rep))
 
 fork ::
     StructuredConcurrency :> es =>

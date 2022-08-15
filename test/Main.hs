@@ -46,9 +46,9 @@ testThrow = do
         waitAll
         await child
 
-testScopeLifting :: (IOE :> es, StructuredConcurrency :> es) => Eff es Int
+testScopeLifting :: StructuredConcurrency :> es => Eff es Int
 testScopeLifting = withCurrentScope $ \runInScope -> do
-    child <- runStructuredConcurrency $ do
+    child <- scoped $ do
         runInScope $ fork $ pure 42
     atomically $ await child
 
