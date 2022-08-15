@@ -1,4 +1,9 @@
-module Main where
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
+
+module Main (main) where
 
 import Control.Applicative ((<|>))
 import Control.Concurrent (threadDelay)
@@ -40,7 +45,7 @@ testFork = do
 
 testThrow :: StructuredConcurrency :> es => Eff es Int
 testThrow = do
-    fork $ error "oops"
+    _ <- fork $ error "oops"
     child <- fork $ pure 42
     withAwaitAll $ \waitAll -> do
         waitAll
@@ -62,9 +67,9 @@ testClientCancel :: (IOE :> es, StructuredConcurrency :> es) => Eff es (Maybe In
 testClientCancel = do
     hitman <- newEmptyTMVarIO
     child <- fork $ client hitman $ do
-            -- liftIO $ putStrLn "running"
-            liftIO (threadDelay 500000)
-            pure 42
+        -- liftIO $ putStrLn "running"
+        liftIO (threadDelay 500000)
+        pure 42
     liftIO (threadDelay 100000)
     -- liftIO $ putStrLn "stopping"
     atomically $ putTMVar hitman ()
