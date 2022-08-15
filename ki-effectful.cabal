@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               ki-effectful
-version:            0.0.1.0
+version:            0.1.0.0
 category:           Concurrency
 stability:          experimental
 synopsis:           Adaptation of the ki library for the effectful ecosystem.
