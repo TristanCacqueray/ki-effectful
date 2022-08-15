@@ -23,19 +23,19 @@ source-repository head
   type:     git
   location: https://github.com/TristanCacqueray/ki-effectful
 
-common common-ghc-options
+common common
   ghc-options:
-    -Wall -Wcompat -Werror -Widentities -Wincomplete-record-updates
-    -Wincomplete-uni-patterns -Wpartial-fields -fhide-source-paths
-    -Wno-unused-do-bind -j
+    -Weverything -Wno-redundant-constraints -Wno-implicit-prelude
+    -Wno-missing-import-lists -Wno-safe -Wno-unsafe
+    -Wno-missing-safe-haskell-mode -Wno-missing-local-signatures
+
+  if impl(ghc >=9.2)
+    ghc-options: -Wno-missing-kind-signatures
 
   default-language: Haskell2010
 
-common common-rts-options
-  ghc-options: -rtsopts -threaded -with-rtsopts=-N
-
 library
-  import:          common-ghc-options
+  import:          common
   hs-source-dirs:  src
   exposed-modules: Effectful.Ki
   build-depends:
@@ -45,8 +45,8 @@ library
     , stm             ^>=2.5
 
 test-suite ki-effectful-test
-  import:         common-ghc-options
-  import:         common-rts-options
+  import:         common
+  ghc-options:    -rtsopts -threaded -with-rtsopts=-N
   type:           exitcode-stdio-1.0
   main-is:        Main.hs
   hs-source-dirs: test

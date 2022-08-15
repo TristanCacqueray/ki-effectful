@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Main where
+module Main (main) where
 
 import Control.Applicative ((<|>))
 import Control.Concurrent (threadDelay)
@@ -45,7 +45,7 @@ testFork = do
 
 testThrow :: StructuredConcurrency :> es => Eff es Int
 testThrow = do
-    fork $ error "oops"
+    _ <- fork $ error "oops"
     child <- fork $ pure 42
     withAwaitAll $ \waitAll -> do
         waitAll
