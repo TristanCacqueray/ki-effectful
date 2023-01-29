@@ -23,18 +23,8 @@ runStructuredConcurrency :: IOE :> es => Eff (StructuredConcurrency : es) a -> E
 
 example:
 ```haskell
-scoped :: StructuredConcurrency :> es => Eff es a -> Eff es a
-fork :: StructuredConcurrency :> es =>   Eff es a -> Eff es (Thread a)
-```
-
-* Helper function to access the current scope:
-
-```haskell
-testScopeLifting :: StructuredConcurrency :> es => Eff es Int
-testScopeLifting = withCurrentScope $ \runInScope -> do
-    child <- scoped $ do
-        runInScope $ fork $ pure 42
-    atomically $ await child
+scoped :: StructuredConcurrency :> es => (Scope -> Eff es a) -> Eff es a
+fork :: StructuredConcurrency :> es =>   Scope -> Eff es a -> Eff es (Thread a)
 ```
 
 [effectful]: https://github.com/haskell-effectful/effectful

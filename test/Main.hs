@@ -39,34 +39,34 @@ runStructuredEff :: Eff '[StructuredConcurrency, IOE] a -> IO a
 runStructuredEff = runEff . runStructuredConcurrency
 
 testFork :: StructuredConcurrency :> es => Eff es Int
-testFork = do
-    child <- fork $ pure 42
+testFork = scoped $ \scope -> do
+    child <- fork scope $ pure 42
     atomically $ await child
 
 testThrow :: StructuredConcurrency :> es => Eff es Int
-testThrow = do
-    _ <- fork $ error "oops"
-    child <- fork $ pure 42
-    withAwaitAll $ \waitAll -> do
-        waitAll
-        await child
+testThrow = scoped $ \scope -> do
+    _ <- fork scope $ error "oops"
+    child <- fork scope $ pure 42
+    atomically $ do
+      awaitAll scope
+      await child
 
 testScopeLifting :: StructuredConcurrency :> es => Eff es Int
-testScopeLifting = withCurrentScope $ \runInScope -> do
-    child <- scoped $ do
-        runInScope $ fork $ pure 42
+testScopeLifting = scoped $ \parentScope -> do
+    child <- scoped $ \_localScope -> do
+        fork parentScope $ pure 42
     atomically $ await child
 
 testClient :: StructuredConcurrency :> es => Eff es (Maybe Int)
-testClient = do
+testClient = scoped $ \scope -> do
     hitman <- newEmptyTMVarIO
-    child <- fork $ client hitman (pure 42)
+    child <- fork scope $ client hitman (pure 42)
     atomically $ await child
 
 testClientCancel :: (IOE :> es, StructuredConcurrency :> es) => Eff es (Maybe Int)
-testClientCancel = do
+testClientCancel = scoped $ \scope -> do
     hitman <- newEmptyTMVarIO
-    child <- fork $ client hitman $ do
+    child <- fork scope $ client hitman $ do
         -- liftIO $ putStrLn "running"
         liftIO (threadDelay 500000)
         pure 42
@@ -77,8 +77,8 @@ testClientCancel = do
 
 -- | cancellable client implementation proposed in https://github.com/awkward-squad/ki/issues/11#issuecomment-1214159154
 client :: StructuredConcurrency :> es => TMVar () -> Eff es a -> Eff es (Maybe a)
-client doneVar action = do
-    thread <- fork action
+client doneVar action = scoped $ \scope -> do
+    thread <- fork scope action
     let waitDone = do
             () <- readTMVar doneVar
             pure Nothing
