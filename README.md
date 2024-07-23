@@ -19,13 +19,16 @@ example:
 runStructuredConcurrency :: IOE :> es => Eff (StructuredConcurrency : es) a -> Eff es a
 ```
 
-* The [`ki`][ki] api lifted to Eff using the effect local rep to store the scope:
+* The [`ki`][ki] api lifted to Eff:
 
 example:
 ```haskell
 scoped :: StructuredConcurrency :> es => (Scope -> Eff es a) -> Eff es a
 fork :: StructuredConcurrency :> es =>   Scope -> Eff es a -> Eff es (Thread a)
 ```
+
+* Similarly to the `Concurrent` effect, `StructuredConcurrency` also enables `atomically` to
+  perform STM transaction.
 
 [effectful]: https://github.com/haskell-effectful/effectful
 [ki]: https://github.com/awkward-squad/ki
